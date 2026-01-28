@@ -49,6 +49,10 @@ export class ChatwootService {
 
   private provider: any;
 
+  // Cache para deduplicação de orderMessage (evita mensagens duplicadas)
+  private processedOrderIds: Map<string, number> = new Map();
+  private readonly ORDER_CACHE_TTL_MS = 30000; // 30 segundos
+
   constructor(
     private readonly waMonitor: WAMonitoringService,
     private readonly configService: ConfigService,
@@ -1795,6 +1799,20 @@ export class ChatwootService {
     }
 
     // Tratamento de Pedidos do Catálogo (WhatsApp Business Catalog)
+    if (typeKey === 'orderMessage' && result.orderId) {
+      const now = Date.now();
+      // Limpa entradas antigas do cache
+      this.processedOrderIds.forEach((timestamp, id) => {
+        if (now - timestamp > this.ORDER_CACHE_TTL_MS) {
+          this.processedOrderIds.delete(id);
+        }
+      });
+      // Verifica se já processou este orderId
+      if (this.processedOrderIds.has(result.orderId)) {
+        return undefined; // Ignora duplicado
+      }
+      this.processedOrderIds.set(result.orderId, now);
+    }
     if (typeKey === 'orderMessage') {
       // Extrai o valor - pode ser Long, objeto {low, high}, ou número direto
       let rawPrice = 0;
