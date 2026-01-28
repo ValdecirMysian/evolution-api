@@ -1758,39 +1758,58 @@ export class ChatwootService {
   }
 
   private getTypeMessage(msg: any) {
-    const types = {
-      conversation: msg.conversation,
-      imageMessage: msg.imageMessage?.caption,
-      videoMessage: msg.videoMessage?.caption,
-      extendedTextMessage: msg.extendedTextMessage?.text,
-      messageContextInfo: msg.messageContextInfo?.stanzaId,
-      stickerMessage: undefined,
-      documentMessage: msg.documentMessage?.caption,
-      documentWithCaptionMessage: msg.documentWithCaptionMessage?.message?.documentMessage?.caption,
-      audioMessage: msg.audioMessage ? (msg.audioMessage.caption ?? '') : undefined,
-      contactMessage: msg.contactMessage?.vcard,
-      contactsArrayMessage: msg.contactsArrayMessage,
-      locationMessage: msg.locationMessage,
-      liveLocationMessage: msg.liveLocationMessage,
-      listMessage: msg.listMessage,
-      listResponseMessage: msg.listResponseMessage,
-      viewOnceMessageV2:
-        msg?.message?.viewOnceMessageV2?.message?.imageMessage?.url ||
-        msg?.message?.viewOnceMessageV2?.message?.videoMessage?.url ||
-        msg?.message?.viewOnceMessageV2?.message?.audioMessage?.url,
-    };
+  const types = {
+    conversation: msg.conversation,
+    imageMessage: msg.imageMessage?.caption,
+    videoMessage: msg.videoMessage?.caption,
+    extendedTextMessage: msg.extendedTextMessage?.text,
+    messageContextInfo: msg.messageContextInfo?.stanzaId,
+    stickerMessage: undefined,
+    documentMessage: msg.documentMessage?.caption,
+    documentWithCaptionMessage: msg.documentWithCaptionMessage?.message?.documentMessage?.caption,
+    audioMessage: msg.audioMessage ? (msg.audioMessage.caption ?? '') : undefined,
+    contactMessage: msg.contactMessage?.vcard,
+    contactsArrayMessage: msg.contactsArrayMessage,
+    locationMessage: msg.locationMessage,
+    liveLocationMessage: msg.liveLocationMessage,
+    listMessage: msg.listMessage,
+    listResponseMessage: msg.listResponseMessage,
+    // Adicione a linha abaixo. Atenção à vírgula na linha de cima!
+    orderMessage: msg.orderMessage, 
+    viewOnceMessageV2:
+      msg?.message?.viewOnceMessageV2?.message?.imageMessage?.url ||
+      msg?.message?.viewOnceMessageV2?.message?.videoMessage?.url ||
+      msg?.message?.viewOnceMessageV2?.message?.audioMessage?.url,
+  };
 
-    return types;
-  }
+  return types;
+}
 
   private getMessageContent(types: any) {
     const typeKey = Object.keys(types).find((key) => types[key] !== undefined);
 
     let result = typeKey ? types[typeKey] : undefined;
 
-    // Remove externalAdReplyBody| in Chatwoot (Already Have)
+    // Remove externalAdReplyBody| in Chatwoot
     if (result && typeof result === 'string' && result.includes('externalAdReplyBody|')) {
       result = result.split('externalAdReplyBody|').filter(Boolean).join('');
+    }
+
+    // Tratamento de Pedidos do Catálogo
+    if (typeKey === 'orderMessage') {
+      const amount = result.totalAmount1000;
+      // Converte o objeto Long para número antes da divisão
+      const rawPrice = (Long.isLong(amount) ? amount.toNumber() : amount) || 0;
+      const price = (rawPrice / 1000).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: result.totalCurrencyCode || 'BRL',
+      });
+
+      return `🛒 *NOVO PEDIDO NO CATÁLOGO*\n\n` +
+             `*Produto:* ${result.orderTitle}\n` +
+             `*Valor:* ${price}\n` +
+             `*ID:* ${result.orderId}\n\n` +
+             `_Atenda agora para finalizar a venda!_`;
     }
 
     if (typeKey === 'locationMessage' || typeKey === 'liveLocationMessage') {
